@@ -4,6 +4,7 @@ import requests
 import schedule
 import time
 import os
+from decouple import config
 
 # For remote deployment, the credentials are stored as environment variables in Heroku
 # Try to load the credentials remotely first. If this false, look for a local file
