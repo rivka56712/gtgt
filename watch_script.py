@@ -10,7 +10,7 @@ from decouple import Config, RepositoryEnv
 # Try to load the credentials remotely first. If this false, look for a local file
 # Try to first load credentials from environment
 credentials_remote_loaded = False
-config = Config(RepositoryEnv(search_path='~/gtgt/.env'))
+config = Config(RepositoryEnv('~/gtgt/.env'))
 
 try:
     # Credential handling heroku
