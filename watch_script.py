@@ -176,14 +176,24 @@ def still_alive():
 
     telegram_bot_sendtext(message, only_to_admin = True)
 
-# Use schedule to set up a recurrent checking
-schedule.every(3).minutes.do(routine_check)
-schedule.every(24).hours.do(still_alive)
+try:
+    # Use schedule to set up a recurrent checking
+    schedule.every(3).minutes.do(routine_check)
+except:
+    telegram_bot_sendtext("something went wrong at routine_check. Please check")
+
+try:
+    schedule.every(24).hours.do(still_alive)
+except:
+    telegram_bot_sendtext("something went wrong at still_alive. Please check")    
 
 # Description of the sercive, that gets send once
 telegram_bot_sendtext("The bot script has started successfully. The bot checks every 3 minutes, if there is something new at TooGoodToGo. Every 24 hours, the bots sends a 'still alive'-message.", only_to_admin=True)
 
 while True:
     # run_pending
-    schedule.run_pending()
-    time.sleep(1)
+    try:
+        schedule.run_pending()
+        time.sleep(1)
+    except:
+        telegram_bot_sendtext("something went wrong somewhere. Please check")
