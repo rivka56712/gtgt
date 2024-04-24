@@ -13,15 +13,15 @@ credentials_remote_loaded = False
 try:
     # Credential handling heroku
     credentials = dict()
-    credentials['email'] = os.environ['TGTG_EMAIL']
+    credentials['email'] = config['TGTG_EMAIL']
     print(f"tgtg_email: {credentials['email']}")
 
     telegram = dict()
-    telegram['bot_chatID1'] = os.environ['TELEGRAM_BOT_CHATID1']
+    telegram['bot_chatID1'] = config['TELEGRAM_BOT_CHATID1']
     print(f"TELEGRAM_BOT_CHATID1: {telegram['bot_chatID1']}")
-    telegram['bot_chatID2'] = os.environ['TELEGRAM_BOT_CHATID2']
+    telegram['bot_chatID2'] = config['TELEGRAM_BOT_CHATID2']
     print(f"TELEGRAM_BOT_CHATID2: {telegram['bot_chatID2']}")
-    telegram['bot_token'] = os.environ['TELEGRAM_BOT_TOKEN']
+    telegram['bot_token'] = config['TELEGRAM_BOT_TOKEN']
     print(f"TELEGRAM_BOT_TOKEN: {telegram['bot_token']}")
 
     credentials_remote_loaded = True
