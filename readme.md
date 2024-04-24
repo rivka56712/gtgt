@@ -13,8 +13,6 @@ Here is a screenshot of the application:
 
 ![Telegram Screenshot](/result_screenshot.jpeg "Telegram bot with notifications")
 
-
-
 ##### Tgtg API
 There is a library wrapped around the API of the tgtg-app. You can find the library and a short documentation [here.](https://pypi.org/project/tgtg/)
 
@@ -28,8 +26,12 @@ For more information about the @BotFather please refer to the official documenta
 ##### Heroku Deployment
 Heroku is a platform to run small web applications in the cloud for free. [This article](https://medium.com/dev-genius/how-to-deploy-your-python-script-to-heroku-in-4-minutes-cddf11d852af) gives a short description on how to deploy a python script on Heroku. Additionally, I used config variables to hide my credentials in the project. These variables are explained [here](https://devcenter.heroku.com/articles/config-vars#config-var-policies) in the heroku documentation.
 
-#####AWS free tier
-As of 2023, Heroku does not offer free tier anymore so I switched to aws free tier with s3 and ecs deployment. I followed the steps here: https://python.plainenglish.io/deploying-python-scripts-on-aws-a-step-by-step-guide-for-installing-selenium-and-chromedriver-13c1ef23c5b4
+##### AWS free tier
+As of 2023, Heroku does not offer free tier anymore so I switched to aws free tier with ec2 deployment. I followed the steps here: https://python.plainenglish.io/deploying-python-scripts-on-aws-a-step-by-step-guide-for-installing-selenium-and-chromedriver-13c1ef23c5b4
+Create a .env file with the following params:
+TGTG_EMAIL=<your_email>
+TELEGRAM_BOT_CHATID1=<your_chat id>
+TELEGRAM_BOT_TOKEN=<your_telegram token>
 
 
-Many thanks to Der-henning and AukiJuanDiaz
+Many thanks to @Der-henning and @AukiJuanDiaz
