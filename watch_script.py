@@ -10,20 +10,20 @@ from decouple import Config, RepositoryEnv
 # Try to load the credentials remotely first. If this false, look for a local file
 # Try to first load credentials from environment
 credentials_remote_loaded = False
-config = Config(RepositoryEnv('~/gtgt/.env'))
+config = Config(RepositoryEnv('.env'))
 
 try:
     # Credential handling heroku
     credentials = dict()
-    credentials['email'] = config['TGTG_EMAIL']
+    credentials['email'] = config.get('TGTG_EMAIL')
     print(f"tgtg_email: {credentials['email']}")
 
     telegram = dict()
-    telegram['bot_chatID1'] = config['TELEGRAM_BOT_CHATID1']
+    telegram['bot_chatID1'] = config.get('TELEGRAM_BOT_CHATID1')
     print(f"TELEGRAM_BOT_CHATID1: {telegram['bot_chatID1']}")
-    telegram['bot_chatID2'] = config['TELEGRAM_BOT_CHATID2']
+    telegram['bot_chatID2'] = config.get('TELEGRAM_BOT_CHATID2')
     print(f"TELEGRAM_BOT_CHATID2: {telegram['bot_chatID2']}")
-    telegram['bot_token'] = config['TELEGRAM_BOT_TOKEN']
+    telegram['bot_token'] = config.get('TELEGRAM_BOT_TOKEN')
     print(f"TELEGRAM_BOT_TOKEN: {telegram['bot_token']}")
 
     credentials_remote_loaded = True
