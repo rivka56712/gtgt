@@ -4,13 +4,13 @@ import requests
 import schedule
 import time
 import os
-from decouple import AutoConfig
+from decouple import Config, RepositoryEnv
 
 # For remote deployment, the credentials are stored as environment variables in Heroku
 # Try to load the credentials remotely first. If this false, look for a local file
 # Try to first load credentials from environment
 credentials_remote_loaded = False
-config = AutoConfig(search_path='~/gtgt/.env')
+config = Config(RepositoryEnv(search_path='~/gtgt/.env'))
 
 try:
     # Credential handling heroku
