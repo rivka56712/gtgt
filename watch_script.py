@@ -1,4 +1,4 @@
-from tgtg import TgtgClient
+from mytgtgclient import MyTgtgClient
 from json import load, dump
 import requests
 import schedule
