@@ -1,179 +1,189 @@
 from tgtg import TgtgClient
-from json import load
+from json import load, dump
 import requests
 import schedule
 import time
-from decouple import Config, RepositoryEnv
+import os
 
-# Load credentials
-def load_credentials():
+# For remote deployment, the credentials are stored as environment variables in Heroku
+# Try to load the credentials remotely first. If this false, look for a local file
+# Try to first load credentials from environment
+credentials_remote_loaded = False
+
+try:
+    # Credential handling heroku
+    credentials = dict()
+    credentials['email'] = os.environ['TGTG_EMAIL']
+    print(f"tgtg_email: {credentials['email']}")
+
+    telegram = dict()
+    telegram['bot_chatID1'] = os.environ['TELEGRAM_BOT_CHATID1']
+    print(f"TELEGRAM_BOT_CHATID1: {telegram['bot_chatID1']}")
+    telegram['bot_chatID2'] = os.environ['TELEGRAM_BOT_CHATID2']
+    print(f"TELEGRAM_BOT_CHATID2: {telegram['bot_chatID2']}")
+    telegram['bot_token'] = os.environ['TELEGRAM_BOT_TOKEN']
+    print(f"TELEGRAM_BOT_TOKEN: {telegram['bot_token']}")
+
+    credentials_remote_loaded = True
+except:
+    print("No credentials found in Heroku environment")
+
+if credentials_remote_loaded == False:
     try:
-        config = Config(RepositoryEnv('.env'))
-        credentials = {
-            'email': config.get('TGTG_EMAIL'),
-            'telegram': {
-                'bot_chatID1': config.get('TELEGRAM_BOT_CHATID1'),
-                'bot_chatID2': config.get('TELEGRAM_BOT_CHATID1'),
-                'bot_token': config.get('TELEGRAM_BOT_TOKEN')
-            }
-        }
-        return credentials
-    except Exception as e:
-        print(f"Failed to load credentials: {e}")
-        return None
+        # Credential handling local version
+        # Load tgtg account credentials from a hidden file
+        f = open('telegram.json',)
+        telegram = load(f)
+        f.close()
 
-# Initialize TGTG client
-def initialize_tgtg_client(credentials):
-    try:
-        client = TgtgClient(email=credentials['email'])
-        tgtg_credentials = client.get_credentials()
-        client = TgtgClient(access_token=tgtg_credentials['access_token'],
-                            refresh_token=tgtg_credentials['refresh_token'],
-                            user_id=tgtg_credentials['user_id'],
-                            cookie=tgtg_credentials['cookie'])
-        return client
-    except Exception as e:
-        print(f"Failed to initialize TGTG client: {e}")
-        return None
+        # Load tgtg account credentials from a hidden file
+        f = open('credentials.json',)
+        credentials = load(f)
+        f.close()
+    except:
+        print("No files found for local credentials.")
 
-# Send message via Telegram bot
-def send_telegram_message(bot_message, chat_ids):
-    try:
-        for chat_id in chat_ids:
-            bot_token = credentials['telegram']['bot_token']
-            send_text = f'https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={bot_message}'
-            response = requests.get(send_text)
-            response.raise_for_status()
-        return True
-    except Exception as e:
-        print(f"Failed to send Telegram message: {e}")
-        return False
+# Create the tgtg client with my credentials
+client = TgtgClient(email=credentials['email'])
 
-# Fetch stock from TGTG API
-def fetch_stock(client):
-    try:
-        api_response = client.get_items()
-        return api_response
-    except Exception as e:
-        print(f"Failed to fetch stock from TGTG API: {e}")
-        return None
+tgtg_credentials = client.get_credentials()
 
-# Process stock data
-def process_stock(stock_data):
-    try:
-        processed_data = []
-        for item in stock_data:
-            processed_item = {
-                'item_id': item['item']['item_id'],
-                'store_name': item['store']['store_name'],
-                'items_available': item['items_available'],
-                'category_picture': item['store']['cover_picture']['current_url']
-            }
-            processed_data.append(processed_item)
-        return processed_data
-    except Exception as e:
-        print(f"Failed to process stock data: {e}")
-        return None
+client = TgtgClient(access_token=tgtg_credentials['access_token'], refresh_token=tgtg_credentials['refresh_token'], user_id=tgtg_credentials['user_id'], cookie=tgtg_credentials['cookie'])
 
-# Initialize credentials and client
-credentials = load_credentials()
-if credentials:
-    client = initialize_tgtg_client(credentials)
-else:
-    exit(1)
+# Init the favourites in stock list as a global variable
+favourites_in_stock = list()
 
-# Initialize favourites in stock
-favourites_in_stock = []
 
-# Telegram bot message functions
-def send_text_message(bot_message):
-    chat_ids = [credentials['telegram']['bot_chatID1'], credentials['telegram']['bot_chatID2']]
-    return send_telegram_message(bot_message, chat_ids)
+def telegram_bot_sendtext(bot_message, only_to_admin=False):
+    """
+    Helper function: Send a message with the specified telegram bot.
+    It can be specified if both users or only the admin receives the message
+    Follow this article to figure out a specific chatID: https://medium.com/@ManHay_Hong/how-to-create-a-telegram-bot-and-send-messages-with-python-4cf314d9fa3e
+    """
 
-def send_image_message(image_url, image_caption=None):
-    chat_ids = [credentials['telegram']['bot_chatID1'], credentials['telegram']['bot_chatID2']]
-    try:
-        for chat_id in chat_ids:
-            bot_token = credentials['telegram']['bot_token']
-            send_text = f'https://api.telegram.org/bot{bot_token}/sendPhoto?chat_id={chat_id}&photo={image_url}'
-            if image_caption:
-                send_text += f'&caption={image_caption}'
-            response = requests.get(send_text)
-            response.raise_for_status()
-        return True
-    except Exception as e:
-        print(f"Failed to send Telegram image message: {e}")
-        return False
-
-# Main routine check function
-def routine_check():
-    global favourites_in_stock
-    stock_data = fetch_stock(client)
-    if stock_data:
-        new_stock = process_stock(stock_data)
-        if new_stock:
-            list_of_item_ids = [fav['item_id'] for fav in new_stock]
-            for item_id in list_of_item_ids:
-                try:
-                    old_stock = next(item['items_available'] for item in favourites_in_stock if item['item_id'] == item_id)
-                except StopIteration:
-                    old_stock = 0
-                    print("Item ID was not known as a favorite before")
-                new_stock_count = next(item['items_available'] for item in new_stock if item['item_id'] == item_id)
-
-                if new_stock_count != old_stock:
-                    if old_stock == 0 and new_stock_count > 0:
-                        message = f"There are {new_stock_count} new goodie bags at {next(item['store_name'] for item in new_stock if item['item_id'] == item_id)}"
-                        image = next(item['category_picture'] for item in new_stock if item['item_id'] == item_id)
-                        send_image_message(image, message)
-                    elif old_stock > new_stock_count and new_stock_count != 0:
-                        pass
-                    elif old_stock > new_stock_count and new_stock_count == 0:
-                        message = f"⭕ Sold out! There are no more goodie bags available at {next(item['store_name'] for item in new_stock if item['item_id'] == item_id)}"
-                        send_text_message(message)
-                    else:
-                        message = f"There was a change of number of goodie bags in stock from {old_stock} to {new_stock_count} at {next(item['store_name'] for item in new_stock if item['item_id'] == item_id)}"
-                        send_text_message(message)
-
-            favourites_in_stock = new_stock
-            print(f"API run at {time.ctime(time.time())} successful. Current stock:")
-            for item_id in list_of_item_ids:
-                print(f"{next(item['store_name'] for item in new_stock if item['item_id'] == item_id)}: {next(item['items_available'] for item in new_stock if item['item_id'] == item_id)}")
+    if only_to_admin:
+        # ChadID1 is the admin
+        chatIDlist = [telegram["bot_chatID1"]]
     else:
-        print("Failed to fetch stock data")
+        chatIDlist = [telegram["bot_chatID1"], telegram["bot_chatID2"]]
 
-# Main still alive function
+    for id in chatIDlist:
+        bot_token = telegram["bot_token"]
+        send_text = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + id + '&parse_mode=Markdown&text=' + bot_message
+        response = requests.get(send_text)
+
+    return response.json()
+
+def telegram_bot_sendimage(image_url, image_caption=None):
+    """
+    For sending an image in Telegram, that can also be accompanied by an image caption
+    """
+    # Send the message to both users
+    chatIDlist = [telegram["bot_chatID1"], telegram["bot_chatID2"]]
+    for id in chatIDlist:
+        bot_token = telegram["bot_token"]
+        # Prepare the url for an telegram API call to send a photo
+        send_text = 'https://api.telegram.org/bot' + bot_token + '/sendPhoto?chat_id=' + id + '&photo=' + image_url
+
+        # If the argument gets passed, at a caption to the image
+        if image_caption != None:
+            send_text += '&caption=' + image_caption
+        response = requests.get(send_text)
+
+    return response.json()
+
+def fetch_stock_from_api(api_result):
+    """
+    For fideling out the few important information out of the api response
+    """
+    new_api_result = list()
+    # Go through all favorites linked to the account,that are returned with the api
+    for i in range(len(api_result)):
+        current_fav = dict()
+        current_fav['item_id'] = api_result[i]['item']['item_id']
+        current_fav['store_name'] = api_result[i]['store']['store_name']
+        current_fav['items_available'] = api_result[i]['items_available']
+        current_fav['category_picture'] = api_result[i]['store']['cover_picture']['current_url']
+        new_api_result.append(current_fav)
+
+    return new_api_result
+
+def routine_check():
+    """
+    Function that gets called via schedule every 3 minutes.
+    Retrieves the data from TGTG API and selects the message to send.
+    """
+
+    # Get the global variable of items in stock
+    global favourites_in_stock
+
+    # Get all favorite items
+    api_response = client.get_items()
+    new_api_result = fetch_stock_from_api(api_response)
+
+    # Go through all favourite items and compare the stock
+    list_of_item_ids = [fav['item_id'] for fav in new_api_result]
+    for item_id in list_of_item_ids:
+        try:
+            old_stock = [item['items_available'] for item in favourites_in_stock if item['item_id'] == item_id][0]
+        except:
+            old_stock = 0
+            print("An exception occurred: The item_id was not known as a favorite before")
+
+        new_stock = [item['items_available'] for item in new_api_result if item['item_id'] == item_id][0]
+
+        # Check, if the stock has changed. Send a message if so.
+        if new_stock != old_stock:
+            # Check if the stock was replenished, send an encouraging image message
+            if old_stock == 0 and new_stock > 0:
+                message = f"There are {new_stock} new goodie bags at {[item['store_name'] for item in new_api_result if item['item_id'] == item_id][0]}"
+                image = [item['category_picture'] for item in new_api_result if item['item_id'] == item_id][0]
+                telegram_bot_sendimage(image, message)
+            elif old_stock > new_stock and new_stock != 0:
+                # customer feedback: This message is not needed
+                pass
+                ## Prepare a generic string, but with the important info
+                # message = f" 📉 Decrease from {old_stock} to {new_stock} available goodie bags at {[item['store_name'] for item in new_api_result if item['item_id'] == item_id][0]}."
+                # telegram_bot_sendtext(message)
+            elif old_stock > new_stock and new_stock == 0:
+                message = f" ⭕ Sold out! There are no more goodie bags available at {[item['store_name'] for item in new_api_result if item['item_id'] == item_id][0]}."
+                telegram_bot_sendtext(message)
+            else:
+                # Prepare a generic string, but with the important info
+                message = f"There was a change of number of goodie bags in stock from {old_stock} to {new_stock} at {[item['store_name'] for item in new_api_result if item['item_id'] == item_id][0] }."
+                telegram_bot_sendtext(message)
+
+    # Reset the global information with the newest fetch
+    favourites_in_stock = new_api_result
+
+    # Print out some maintenance info in the terminal
+    print(f"API run at {time.ctime(time.time())} successful. Current stock:")
+    for item_id in list_of_item_ids:
+        print(f"{[item['store_name'] for item in new_api_result if item['item_id'] == item_id][0]}:\
+         {[item['items_available'] for item in new_api_result if item['item_id'] == item_id][0]}")
+
 def still_alive():
-    try:
-        message = f"Current time: {time.ctime(time.time())}. The bot is still running. "
-        list_of_item_ids = [fav['item_id'] for fav in favourites_in_stock]
-        for item_id in list_of_item_ids:
-            message += f"{next(item['store_name'] for item in favourites_in_stock if item['item_id'] == item_id)}: {next(item['items_available'] for item in favourites_in_stock if item['item_id'] == item_id)} items available"
-        send_text_message(message)
-    except Exception as e:
-        print(f"Failed to send 'still alive' message: {e}")
+    """
+    This function gets called every 24 hours and sends a 'still alive' message to the admin.
+    """
+    message = f"Current time: {time.ctime(time.time())}. The bot is still running. "
 
-# Schedule jobs
-try:
-    schedule.every(3).minutes.do(routine_check)
-except Exception as e:
-    print(f"Failed to schedule routine_check: {e}")
+    global favourites_in_stock
 
-try:
-    schedule.every(24).hours.do(still_alive)
-except Exception as e:
-    print(f"Failed to schedule still_alive: {e}")
+    list_of_item_ids = [fav['item_id'] for fav in favourites_in_stock]
+    for item_id in list_of_item_ids:
+        message += (f"{[item['store_name'] for item in favourites_in_stock if item['item_id'] == item_id][0]}: {[item['items_available'] for item in favourites_in_stock if item['item_id'] == item_id][0]} items available")
 
-# Initial message
-initial_message = "The bot script has started successfully. The bot checks every 3 minutes if there is something new at TooGoodToGo. Every 24 hours, the bot sends a 'still alive' message."
-if not send_text_message(initial_message):
-    exit(1)
+    telegram_bot_sendtext(message, only_to_admin = True)
 
-# Main loop
+# Use schedule to set up a recurrent checking
+schedule.every(3).minutes.do(routine_check)
+schedule.every(24).hours.do(still_alive)
+
+# Description of the sercive, that gets send once
+telegram_bot_sendtext("The bot script has started successfully. The bot checks every 3 minutes, if there is something new at TooGoodToGo. Every 24 hours, the bots sends a 'still alive'-message.", only_to_admin=True)
+
 while True:
-    try:
-        schedule.run_pending()
-        time.sleep(1)
-    except Exception as e:
-        print(f"Error occurred: {e}")
-        exit(1)
+    # run_pending
+    schedule.run_pending()
+    time.sleep(1)
