@@ -110,6 +110,9 @@ def routine_check():
     try:
         global favourites_in_stock
 
+        if not first_run:
+            tgtg_client.login()
+
         # Get all favorite items
         api_response = client.get_items()
         new_api_result = fetch_stock_from_api(api_response)
