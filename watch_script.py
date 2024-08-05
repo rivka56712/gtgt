@@ -8,6 +8,7 @@ import os
 # For remote deployment, the credentials are stored as environment variables in Heroku
 # Try to load the credentials remotely first. If this fails, look for a local file
 credentials_remote_loaded = False
+first_run = True
 
 try:
     # Credential handling for Heroku
@@ -108,6 +109,7 @@ def routine_check():
     Retrieves the data from TGTG API and selects the message to send.
     """
     try:
+        global first_run
         global favourites_in_stock
 
         if not first_run:
@@ -146,6 +148,8 @@ def routine_check():
     except Exception as e:
         telegram_bot_sendtext("Something went wrong somewhere", only_to_admin=True)
         print(f"An error occurred: {e}")
+
+    first_run = False
 
 def still_alive():
     """
